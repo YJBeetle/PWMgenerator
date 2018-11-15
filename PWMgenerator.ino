@@ -1,8 +1,9 @@
+unsigned int clock_source = 1;
 unsigned int num = 0; //0x0010 ~ 0X00ff
 unsigned int clicknum = 0; //按下次数
 unsigned int clicknumnum = 0;
 
-void led_show(int num){
+void led_show(){
   for(unsigned int i = 0; i < 4; i++)
   {
     //关闭4个输出
@@ -15,7 +16,7 @@ void led_show(int num){
     unsigned int n = 0;
     switch(i){
       case 0:
-        n = num / 1000 % 10;
+        n = clock_source;
         break;
       case 1:
         n = num / 100 % 10;
@@ -159,14 +160,20 @@ void setup() {
   //PWM
   pinMode(9, OUTPUT);
   TCCR1A=0x80;//匹配时清OC1A，计数值满时置位OC1A，8.相位与频率修正PWM模式
-  TCCR1B=0x12;//8预分频
+  TCCR1B=0x11;//1无预分频
+//  TCCR1B=0x12;//8预分频
+//  TCCR1B=0x13;//64预分频
+//  TCCR1B=0x14;//256预分频
+//  TCCR1B=0x15;//1024预分频
   ICR1=0X00ff;//MAX:0X0FFF
   OCR1AH=0x00;//占空比
   OCR1AL=0x80;//MAX:<ICR1
 
+  clock_source = 1;
+  TCCR1B = 0x10+clock_source;
   num = 0x0010;
-  OCR1AL = num/2; //占空比为一半
   ICR1=num;       //PWM频率
+  OCR1AL = num/2; //占空比为一半
   clicknum = 0;
   clicknumnum = 0;
 }
@@ -175,29 +182,16 @@ void loop() {
   // put your main code here, to run repeatedly:
 
   //LED
-  led_show(num);
+  led_show();
 
   //按键
   if(digitalRead(A3)==LOW)
   {
     if(clicknum == 0){
-      switch(num){
-        case 0x0002:
-          num = 0x0010;
-          break;
-        case 0x0010:
-          num = 0x0080;
-          break;
-        case 0x0080:
-          num = 0x00ff;
-          break;
-        default:
-        case 0x00ff:
-          num = 0x0002;
-          break;
-      }
-      OCR1AL = num/2; //占空比为一半
-      ICR1=num;       //PWM频率
+      clock_source++;
+      if(clock_source > 5)
+        clock_source = 1;
+      TCCR1B = 0x10+clock_source;
     }
     clicknum++;
   }
@@ -205,8 +199,8 @@ void loop() {
   {
     if((clicknum == 0 || clicknum > 64 || clicknumnum > 8) && num>0x0002){
       num--;
-      OCR1AL = num/2; //占空比为一半
       ICR1=num;       //PWM频率
+      OCR1AL = num/2; //占空比为一半
       if(clicknum > 64)
       {
         clicknum = 48;
@@ -219,8 +213,8 @@ void loop() {
   {
     if((clicknum == 0 || clicknum > 64 || clicknumnum > 8) && num<0X00ff){
       num++;
-      OCR1AL = num/2; //占空比为一半
       ICR1=num;       //PWM频率
+      OCR1AL = num/2; //占空比为一半
       if(clicknum > 64)
       {
         clicknum = 48;
